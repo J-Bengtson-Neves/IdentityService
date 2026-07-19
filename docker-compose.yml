@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  identity-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5001:8080"
+    depends_on:
+      - postgres
+    environment:
+      - ConnectionStrings__IdentityServiceDb=Host=postgres;Port=5432;Database=identityservice;Username=identity;Password=supersecret
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Jwt__Secret=my_super_secret_jwt_key_that_is_long_enough_32bytes!
+      - Jwt__Issuer=IdentityService
+      - Jwt__Audience=IdentityService.Clients
+      - Jwt__AccessTokenExpirationMinutes=15
+      - Jwt__RefreshTokenExpirationDays=7
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=identityservice
+      - POSTGRES_USER=identity
+      - POSTGRES_PASSWORD=supersecret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
