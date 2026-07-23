@@ -117,6 +117,28 @@ public class IdentityService : IIdentityService
         return user?.Id;
     }
 
+    public async Task<string?> GetUserIdByEthereumAddressAsync(string address)
+    {
+        var normalizedAddress = address.Trim().ToLowerInvariant();
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.EthereumAddress == normalizedAddress);
+        return user?.Id;
+    }
+
+    public async Task<(Result Result, string UserId)> CreateUserWithEthereumAddressAsync(string address)
+    {
+        var normalizedAddress = address.Trim().ToLowerInvariant();
+        var user = new ApplicationUser
+        {
+            UserName = Guid.NewGuid().ToString("N"), // No email, random username
+            EthereumAddress = normalizedAddress,
+            EthereumLinkedAt = DateTime.UtcNow
+        };
+
+        var result = await _userManager.CreateAsync(user);
+
+        return (result.ToApplicationResult(), user.Id);
+    }
+
     public async Task<bool> CheckPasswordAsync(string userName, string password)
     {
         var user = await _userManager.FindByNameAsync(userName);

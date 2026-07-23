@@ -16,5 +16,7 @@ public interface IIdentityService
     Task<string?> GetUserIdByPubKeyAsync(string pubKey);
     Task<bool> CheckPasswordAsync(string userName, string password);
     Task<(Result Result, string UserId)> CreateUserWithoutEmailAsync(string pubKey);
+    Task<string?> GetUserIdByEthereumAddressAsync(string address);
+    Task<(Result Result, string UserId)> CreateUserWithEthereumAddressAsync(string address);
 }
 

@@ -1,4 +1,5 @@
-﻿using IdentityService.Application.Common.Interfaces;
+using System.Text.Json;
+using IdentityService.Application.Common.Interfaces;
 using IdentityService.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;

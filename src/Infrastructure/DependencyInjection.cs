@@ -44,6 +44,7 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddApiEndpoints();
 
+
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddTransient<IIdentityService, IdentityService.Infrastructure.Identity.IdentityService>();
         
@@ -52,5 +53,8 @@ public static class DependencyInjection
         builder.Services.AddTransient<IGoogleAuthService, IdentityService.Infrastructure.Auth.GoogleAuthService>();
         builder.Services.AddTransient<IApiKeyService, IdentityService.Infrastructure.Auth.ApiKeyService>();
         builder.Services.AddSingleton<ILnurlAuthSessionStore, IdentityService.Infrastructure.Auth.InMemoryLnurlAuthSessionStore>();
+        
+        builder.Services.AddTransient<IdentityService.Infrastructure.Auth.IMetamaskAuthService, IdentityService.Infrastructure.Auth.MetamaskAuthService>();
+        builder.Services.AddSingleton<IdentityService.Infrastructure.Auth.IMetamaskAuthSessionStore, IdentityService.Infrastructure.Auth.InMemoryMetamaskAuthSessionStore>();
     }
 }

@@ -3,6 +3,7 @@ import { AuthClient, LoginCommand, LnurlAuthCommand, GoogleLoginCommand } from '
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { GoogleLogin } from '@react-oauth/google';
+import { Mail, Zap, Wallet } from 'lucide-react';
 
 const authClient = new AuthClient(import.meta.env.VITE_API_BASE_URL || '');
 
@@ -13,6 +14,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('email');
+  const [metamaskStatus, setMetamaskStatus] = useState('');
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +29,13 @@ export default function Login() {
       
       if (response && response.accessToken) {
         localStorage.setItem('token', response.accessToken);
-        navigate('/dashboard');
+        const urlParams = new URLSearchParams(window.location.search);
+        const returnUrl = urlParams.get('returnUrl');
+        if (returnUrl) {
+          window.location.href = `${returnUrl}?token=${response.accessToken}`;
+        } else {
+          navigate('/dashboard');
+        }
       } else {
         setError('Login failed. Please check your credentials.');
       }
@@ -48,7 +56,13 @@ export default function Login() {
       
       if (response && response.accessToken) {
         localStorage.setItem('token', response.accessToken);
-        navigate('/dashboard');
+        const urlParams = new URLSearchParams(window.location.search);
+        const returnUrl = urlParams.get('returnUrl');
+        if (returnUrl) {
+          window.location.href = `${returnUrl}?token=${response.accessToken}`;
+        } else {
+          navigate('/dashboard');
+        }
       } else {
         setError('Google Login failed.');
       }
@@ -110,8 +124,7 @@ export default function Login() {
 
   const pollLnurlStatus = async (k1: string) => {
     let attempts = 0;
-    const maxAttempts = 120; // 2 minutes (1 per second)
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+    const maxAttempts = 120;
     
     const interval = setInterval(async () => {
       attempts++;
@@ -123,14 +136,20 @@ export default function Login() {
       }
       
       try {
-        const response = await fetch(`${baseUrl}/api/Auth/lnurl-status?k1=${k1}`);
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/Auth/lnurl-status?k1=${k1}`);
         if (response.status === 200) {
           const data = await response.json();
           if (data.isCompleted && data.result) {
             clearInterval(interval);
             setPollingStatus('Authenticated successfully!');
             localStorage.setItem('token', data.result.accessToken);
-            navigate('/dashboard');
+            const urlParams = new URLSearchParams(window.location.search);
+            const returnUrl = urlParams.get('returnUrl');
+            if (returnUrl) {
+              window.location.href = `${returnUrl}?token=${data.result.accessToken}`;
+            } else {
+              navigate('/dashboard');
+            }
           }
         } else if (response.status === 401) {
             clearInterval(interval);
@@ -141,6 +160,76 @@ export default function Login() {
         console.error('Polling error', err);
       }
     }, 1000);
+  };
+
+  const handleMetamaskLogin = async () => {
+    try {
+      setMetamaskStatus('Connecting to Metamask...');
+      setError('');
+      
+      // @ts-ignore
+      if (!window.ethereum) {
+        throw new Error('Metamask is not installed. Please install it to continue.');
+      }
+
+      // @ts-ignore
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const address = accounts[0];
+
+      const normalizedAddress = address.toLowerCase();
+
+      setMetamaskStatus('Requesting secure nonce...');
+      const nonceRes = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/Auth/metamask-nonce`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: normalizedAddress })
+      });
+      if (!nonceRes.ok) throw new Error('Failed to fetch authentication nonce.');
+      
+      const { nonce } = await nonceRes.json();
+
+      setMetamaskStatus('Please sign the message in Metamask...');
+      const hexNonce = '0x' + Array.from(new TextEncoder().encode(nonce))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      // @ts-ignore
+      const signature = await window.ethereum.request({
+        method: 'personal_sign',
+        params: [hexNonce, address]
+      });
+
+      setMetamaskStatus('Verifying signature...');
+      const loginRes = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/Auth/metamask-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, signature })
+      });
+
+      if (!loginRes.ok) {
+        throw new Error('Login failed. Invalid signature or address.');
+      }
+
+      const data = await loginRes.json();
+      setMetamaskStatus('Login successful!');
+      
+      if (data && data.accessToken) {
+        localStorage.setItem('token', data.accessToken);
+        const urlParams = new URLSearchParams(window.location.search);
+        const returnUrl = urlParams.get('returnUrl');
+        if (returnUrl) {
+          window.location.href = `${returnUrl}?token=${data.accessToken}`;
+        } else {
+          navigate('/dashboard');
+        }
+      } else {
+        throw new Error('Invalid response from server.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || 'Metamask authentication failed.');
+      setMetamaskStatus('');
+    }
   };
 
   const renderLnurlForm = () => (
@@ -170,6 +259,28 @@ export default function Login() {
     </div>
   );
 
+  const renderMetamaskForm = () => (
+    <div className="lnurl-container fade-in text-center">
+      <p>Connect your Web3 wallet securely.</p>
+      
+      <button 
+        type="button" 
+        className="primary-btn" 
+        onClick={handleMetamaskLogin}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '0 auto' }}
+      >
+        <span aria-hidden="true" style={{ fontSize: '1.1rem' }}>🦊</span>
+        Connect with Metamask
+      </button>
+
+      {metamaskStatus && (
+        <p className="mt-4 text-sm" style={{ color: 'var(--pico-primary)' }}>{metamaskStatus}</p>
+      )}
+      
+      {error && <div className="error-message mt-2">{error}</div>}
+    </div>
+  );
+
   return (
     <div className="login-page">
       <div className="login-glass-card">
@@ -182,18 +293,29 @@ export default function Login() {
           <button 
             className={`tab-btn ${activeTab === 'email' ? 'active' : ''}`}
             onClick={() => setActiveTab('email')}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}
           >
-            Email
+            <Mail size={18} /> Email
           </button>
           <button 
             className={`tab-btn ${activeTab === 'lnurl' ? 'active' : ''}`}
             onClick={() => setActiveTab('lnurl')}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}
           >
-            LNURL
+            <Zap size={18} /> LNURL
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'metamask' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('metamask'); setError(''); setMetamaskStatus(''); }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}
+          >
+            <Wallet size={18} /> Metamask
           </button>
         </div>
 
-        {activeTab === 'email' ? renderEmailForm() : renderLnurlForm()}
+        {activeTab === 'email' && renderEmailForm()}
+        {activeTab === 'lnurl' && renderLnurlForm()}
+        {activeTab === 'metamask' && renderMetamaskForm()}
 
         <div className="divider">
           <span>or continue with</span>

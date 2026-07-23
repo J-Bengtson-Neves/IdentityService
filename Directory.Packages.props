@@ -49,5 +49,6 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.11.0" />
     <PackageVersion Include="NBitcoin.Secp256k1" Version="3.1.4" />
     <PackageVersion Include="Google.Apis.Auth" Version="1.68.0" />
+    <PackageVersion Include="Nethereum.Signer" Version="4.21.2" />
   </ItemGroup>
 </Project>

@@ -13,6 +13,10 @@ public class ApplicationUser : IdentityUser
     public string? LightningPubKey { get; set; }
     public DateTime? LightningLinkedAt { get; set; }
     
+    // Ethereum
+    public string? EthereumAddress { get; set; }
+    public DateTime? EthereumLinkedAt { get; set; }
+    
     // Metadata
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
